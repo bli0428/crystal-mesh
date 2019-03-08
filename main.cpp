@@ -56,11 +56,12 @@ int main(int argc, char *argv[])
     auto t0 = high_resolution_clock::now();
     // TODO
     // Convert the mesh into your own data structure
+    m.convertToHalfedge();
 
     // TODO
     // Implement the operations
     if (method == "subdivide"){
-        //TODO
+        m.subdivide();
     } else if (method == "simplify"){
         //TODO
     } else if (method == "remesh"){
@@ -77,6 +78,7 @@ int main(int argc, char *argv[])
     cout << "Execution takes: " << duration << " milliseconds." <<endl;
     // TODO
     // Convert your datastructure back to the basic format
+    m.convertFromHalfedge();
 
     ////////////////////////////////////////////////////////////////////////////////
     m.saveToFile(outfile.toStdString());
