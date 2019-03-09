@@ -65,8 +65,7 @@ private:
     void flattenHalfedge(Face *face);
     void split(Edge *edge);
     void flip(Edge *edge);
-    void subdivideRecursive(Edge * edge);
-    void nextEdges(Edge *edge);
+    void subdivideRecursive(Halfedge *h);
 };
 
 #endif // MESH_H

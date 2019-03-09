@@ -115,8 +115,14 @@ void Mesh::convertToHalfedge() {
             if (k >= 3) k = 0;
             m_edges[pair<int,int>(face[i], face[j])]->next = m_edges[pair<int,int>(face[j], face[k])];
             if (m_edges.find(pair<int,int>(face[j], face[i])) != m_edges.end()) {
-                m_edges[pair<int,int>(face[i], face[j])]->twin = m_edges[pair<int,int>(face[j], face[i])];
-                m_edges[pair<int,int>(face[j], face[i])]->twin = m_edges[pair<int,int>(face[i], face[j])];
+                auto edgeObj = new Edge();
+                auto hij = m_edges[pair<int,int>(face[i], face[j])];
+                auto hji = m_edges[pair<int,int>(face[j], face[i])];
+                edgeObj->halfedge = hij;
+                hij->twin = hji;
+                hji->twin = hij;
+                hij->edge = edgeObj;
+                hji->edge = edgeObj;
             }
         }
     }
@@ -131,13 +137,6 @@ void Mesh::convertToHalfedge() {
             if (j >= 3) j = 0;
             pair<int,int> edge(face[i], face[j]);
             m_edges[edge]->face = faceObj;
-
-            if (j > i) {
-                auto edgeObj = new Edge();
-                edgeObj->halfedge = m_edges[pair<int,int>(face[i],face[j])];
-                m_edges[pair<int,int>(face[i], face[j])]->edge = edgeObj;
-                m_edges[pair<int,int>(face[j], face[i])]->edge = edgeObj;
-            }
         }
     }
 
@@ -190,86 +189,96 @@ void Mesh::flattenHalfedge(Face *face) {
 }
 
 void Mesh::subdivide() {
-    auto edge = m_start->halfedge->edge;
-    auto nextEdge = m_start->halfedge->next->edge;
-    auto prevEdge = m_start->halfedge->next->next->edge;
-    flip(edge);
-    //    subdivideRecursive(edge);
+    auto edge = m_start->halfedge;
+    auto nextEdge = m_start->halfedge->next;
+    auto prevEdge = m_start->halfedge->next->next;
+
+    split(edge->edge);
+    split(nextEdge->edge);
+    split(prevEdge->edge);
+
+//    subdivideRecursive(edge);
+////    split(edge->twin->next->edge);
+////    split(edge->twin->next->next->edge);
+//    subdivideRecursive(nextEdge);
+////    split(nextEdge->twin->next->edge);
+////    split(nextEdge->twin->next->next->edge);
+//    subdivideRecursive(prevEdge);
+//    split(prevEdge->twin->next->edge);
+//    split(prevEdge->twin->next->next->edge);
+//    subdivideRecursive(edge);
 //    subdivideRecursive(nextEdge);
 //    subdivideRecursive(prevEdge);
 }
 
-int m_count = 0;
-void Mesh::subdivideRecursive(Edge *edge) {
-    if(m_visited.contains(edge)) {
-
+void Mesh::subdivideRecursive(Halfedge *h) {
+    if(m_visited.contains(h->edge)) {
         return;
     }
-    m_count++;
-    auto t1 = edge->halfedge;
-    auto t2 = t1->twin;
-    auto t3 = t2->next;
-    auto t4 = t3->edge;
-    auto nextEdge = edge->halfedge->twin->next->edge;
-    auto prevEdge = edge->halfedge->twin->next->next->edge;
-    std::cout<<m_count<<std::endl;
-    split(edge);
+    auto nextEdge = h->next->twin;
+    auto prevEdge = h->next->next->twin;
+
+//    std::cout<<"edge: ["<<test[0]<<","<<test[1]<<","<<test[2]<<"] - ["<<test2[0]<<","<<test2[1]<<","<<test2[2]<<"]"<<std::endl;
+
+    split(h->edge);
     subdivideRecursive(nextEdge);
     subdivideRecursive(prevEdge);
 
 }
 
-void Mesh::nextEdges(Edge *edge) {
-    auto t = edge->halfedge->twin->next;
-    subdivideRecursive(t->edge);
-    subdivideRecursive(t->next->edge);
-}
 
 void Mesh::split(Edge *edge) {
+
     auto h = edge->halfedge;
-    auto v0 = h->next->next->vertex;
-    auto v1 = h->twin->next->next->vertex;
+    auto prevH = h->next->next;
+    auto prevT = h->twin->next->next;
+    auto v0 = prevH->vertex;
+    auto v1 = prevT->vertex;
+    auto hVert = h->vertex;
+    auto tVert = h->twin->vertex;
+    auto hNext = h->next;
+    auto tNext = h->twin->next;
+
+    auto h1 = h->next->edge->halfedge;
+    auto h2 = h->next->next->edge->halfedge;
+    auto h3 = h->twin->edge->halfedge;
+    auto h4 = h->twin->next->edge->halfedge;
+    auto h5 = h->twin->next->next->edge->halfedge;
+
 
     //This is about to get very confusing, so I'm going to organize everything by cardinal direction
     auto newHN = new Halfedge();
     auto newTN = new Halfedge();
     auto newHS = new Halfedge();
     auto newTS = new Halfedge();
-    auto newHW = new Halfedge();
-    auto newTW = new Halfedge();
     auto newHE = new Halfedge();
     auto newTE = new Halfedge();
 
     auto newEN = new Edge();
     auto newES = new Edge();
-    auto newEW = new Edge();
     auto newEE = new Edge();
     newEN->halfedge = newHN;
     newES->halfedge = newHS;
-    newEW->halfedge = newHW;
     newEE->halfedge = newHE;
-    m_visited.insert(newEW);
+    m_visited.insert(h->edge);
     m_visited.insert(newEE);
     m_visited.insert(newEN);
     m_visited.insert(newES);
 
-    auto newHNF = new Face();
     auto newTNF = new Face();
-    auto newHSF = new Face();
     auto newTSF = new Face();
-    newHNF->halfedge = newHN;
     newTNF->halfedge = newTN;
-    newHSF->halfedge = newHS;
     newTSF->halfedge = newTS;
+    h->face->halfedge = h;
+    h->twin->face->halfedge = h->twin;
 
     auto newV = new Vertex();
     newV->isNew = true;
-    newV->halfedge = newHN;
-    //newV->position = Vector3f(0, 0, 0);
+    newV->halfedge = newHN;;
 
     newHN->edge = newEN;
-    newHN->face = newHNF;
-    newHN->next = h->next->next;
+    newHN->face = h->face;
+    newHN->next = prevH;
     newHN->twin = newTN;
     newHN->vertex = newV;
 
@@ -280,55 +289,41 @@ void Mesh::split(Edge *edge) {
     newTN->next = newHE;
 
     newHS->edge = newES;
-    newHS->face = newHSF;
+    newHS->face = h->twin->face;
     newHS->twin = newTS;
     newHS->vertex = v1;
-    newHS->next = newTW;
+    newHS->next = h->twin;
 
     newTS->edge = newES;
     newTS->face = newTSF;
     newTS->twin = newHS;
     newTS->vertex = newV;
-    newTS->next = h->twin->next->next;
+    newTS->next = prevT;
 
-    newHW->edge = newEW;
-    newHW->face = newHNF;
-    newHW->twin = newTW;
-    newHW->vertex = h->vertex;
-    newHW->next = newHN;
 
-    newTW->edge = newEW;
-    newTW->face = newHSF;
-    newTW->twin = newHW;
-    newTW->vertex = newV;
-    newTW->next = h->twin->next;
+    h->next = newHN;
+
+    h->twin->vertex = newV;
 
     newHE->edge = newEE;
     newHE->face = newTNF;
     newHE->twin = newTE;
     newHE->vertex = newV;
-    newHE->next = h->next;
+    newHE->next = hNext;
 
     newTE->edge = newEE;
     newTE->face = newTSF;
     newTE->twin = newHE;
-    newTE->vertex = h->twin->vertex;
+    newTE->vertex = tVert;
     newTE->next = newTS;
 
-//    if (h->twin->vertex == v1) h->twin->vertex->halfedge = h->next;
-//    h->twin->vertex = newV;
-//    h->twin->face = newHSF;
-//    h->face = newHNF;
-//    h->next = newHN;
+    hNext->next = newTN;
+    tNext->next = newHS;
+    prevT->next = newTE;
 
-    if (h->vertex->halfedge == h) h->vertex->halfedge = newHW;
-    if (h->twin->vertex->halfedge == h->twin) h->twin->vertex->halfedge = newTE;
-    delete h->face;
-    delete h->twin->face;
-    delete h->edge;
-    delete h->twin;
-    delete h;
+    if (tVert->halfedge == h->twin) tVert->halfedge = newTE;
 
+    newV->position = (hVert->position + tVert->position) / 2.f;
 }
 
 void Mesh::flip(Edge *edge) {
@@ -361,34 +356,31 @@ void Mesh::flip(Edge *edge) {
     if (v0->halfedge == h) v0->halfedge = prevH->twin;
     if (v1->halfedge == t) v1->halfedge = prevT->twin;
 
-    auto newV0 = prevH->vertex;
-    auto newV1 = prevT->vertex;
+    auto newV0 = prevT->vertex;
+    auto newV1 = prevH->vertex;
 
-    auto newH = new Halfedge();
-    auto newT = new Halfedge();
+    h->vertex = newV0;
+    t->vertex = newV1;
+    h->vertex->halfedge = h;
+    t->vertex->halfedge = t;
 
-    auto faceH = new Face();
-    auto faceT = new Face();
-    auto newEdge = new Edge();
-    newEdge->halfedge = newH;
-    faceH->halfedge = newH;
-    faceT->halfedge = newT;
+    h->face->halfedge = h;
+    t->face->halfedge = t;
 
-    newH->edge = newEdge;
-    newH->twin = newT;
-    newH->face = faceH;
-    newH->vertex = newV0;
-    newH->next = prevH;
+    auto hNext = h->next;
+    auto tNext = t->next;
+    h->next = prevH;
+    t->next = prevT;
 
-    newT->edge = newEdge;
-    newT->face = faceT;
-    newT->twin = newH;
-    newT->vertex = newV1;
-    newT->next = prevT;
+    h->next->face = h->face;
+    t->next->face = t->face;
 
-    delete h->face;
-    delete t->face;
-    delete h->edge;
-    delete t;
-    delete h;
+    h->next->next = tNext;
+    t->next->next = hNext;
+
+    h->next->next->face = h->face;
+    h->next->next->face = h->face;
+
+    h->next->next->next = h;
+    t->next->next->next = t;
 }
