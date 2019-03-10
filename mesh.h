@@ -68,7 +68,7 @@ private:
     void split(Edge *edge);
     void flip(Edge *edge);
     void subdivideRecursive(Halfedge *h);
-//    void getVertices(Vertex *vert);
+    void getVertices(Vertex *vert);
 };
 
 #endif // MESH_H

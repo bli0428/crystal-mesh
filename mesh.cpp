@@ -208,9 +208,13 @@ void Mesh::subdivide(int iterations) {
         edge->isNew = false;
     }
 
-
+    getVertices(m_start);
     const float pi = 3.141592653589793f;
-    for (auto vert : m_verts) {
+    for (auto vert : m_newVerts) {
+        if (vert->isNew) {
+            vert->isNew = false;
+            continue;
+        }
         // Get old vertices
         int n = 0;
         auto vh = vert->halfedge;
@@ -229,6 +233,7 @@ void Mesh::subdivide(int iterations) {
         }
         vert->position = vert->position * (1 - n*u) + finalWeight;
     }
+    m_visited.clear();
     }
 }
 
@@ -403,13 +408,14 @@ void Mesh::flip(Edge *edge) {
     t->next->next->next = t;
 }
 
-//void Mesh::getVertices(Vertex *vert) {
-//    if (m_newVerts.contains(vert)) return;
-//    m_newVerts.insert(vert);
-//    auto h = vert->halfedge;
-//    do {
-//        getVertices(h->twin->vertex);
-//        h = h->next->twin;
-//    } while (vert != h->vertex);
-//}
+void Mesh::getVertices(Vertex *vert) {
+    if (m_newVerts.contains(vert)) return;
+    m_newVerts.insert(vert);
+    auto hVert = vert->halfedge;
+    auto h = vert->halfedge;
+    do {
+        getVertices(h->twin->vertex);
+        h = h->twin->next;
+    } while (h != hVert);
+}
 
