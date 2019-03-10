@@ -4,6 +4,7 @@
 #include <QFileInfo>
 #include <QString>
 
+
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "util/tiny_obj_loader.h"
 
@@ -89,6 +90,7 @@ void Mesh::convertToHalfedge() {
     m_verts.resize(numVerts);
     for (int i = 0; i < numVerts; i++) {
         m_verts[i] = new Vertex();
+        m_verts[i]->isNew = false;
         m_verts[i]->position = _vertices[i];
     }
 
@@ -116,6 +118,7 @@ void Mesh::convertToHalfedge() {
             m_edges[pair<int,int>(face[i], face[j])]->next = m_edges[pair<int,int>(face[j], face[k])];
             if (m_edges.find(pair<int,int>(face[j], face[i])) != m_edges.end()) {
                 auto edgeObj = new Edge();
+                edgeObj->isNew = false;
                 auto hij = m_edges[pair<int,int>(face[i], face[j])];
                 auto hji = m_edges[pair<int,int>(face[j], face[i])];
                 edgeObj->halfedge = hij;
@@ -188,28 +191,48 @@ void Mesh::flattenHalfedge(Face *face) {
     } while (h != face->halfedge);
 }
 
-void Mesh::subdivide() {
-    auto edge = m_start->halfedge;
+void Mesh::subdivide(int iterations) {
+    for (int i = 0; i < iterations; i++) {
+
+    auto h = m_start->halfedge;
     auto nextEdge = m_start->halfedge->next;
-    auto prevEdge = m_start->halfedge->next->next;
+    auto prevEdge = m_start->halfedge->next->next;;
+    subdivideRecursive(h);
+    subdivideRecursive(nextEdge);
+    subdivideRecursive(prevEdge);
 
-    split(edge->edge);
-    split(nextEdge->edge);
-    split(prevEdge->edge);
+    for (auto edge : m_visited) {
+        if (edge->isNew && edge->halfedge->vertex->isNew != edge->halfedge->twin->vertex->isNew) {
+            flip(edge);
+        }
+        edge->isNew = false;
+    }
 
-//    subdivideRecursive(edge);
-////    split(edge->twin->next->edge);
-////    split(edge->twin->next->next->edge);
-//    subdivideRecursive(nextEdge);
-////    split(nextEdge->twin->next->edge);
-////    split(nextEdge->twin->next->next->edge);
-//    subdivideRecursive(prevEdge);
-//    split(prevEdge->twin->next->edge);
-//    split(prevEdge->twin->next->next->edge);
-//    subdivideRecursive(edge);
-//    subdivideRecursive(nextEdge);
-//    subdivideRecursive(prevEdge);
+
+    const float pi = 3.141592653589793f;
+    for (auto vert : m_verts) {
+        // Get old vertices
+        int n = 0;
+        auto vh = vert->halfedge;
+        std::vector<Vertex*> reweight;
+        do {
+            n++;
+            auto reVert = vh->next->twin->next->twin->next->twin->vertex;
+            //auto reVert = vh->twin->vertex;
+            reweight.push_back(reVert);
+            vh = vh->twin->next;
+        } while (vh != vert->halfedge);
+        float u = (1.f/n) * (5.f/8 - std::pow(3.f/8 + std::cos(2 * pi/n)/4.f, 2));
+        Vector3f finalWeight = Vector3f(0,0,0);
+        for (auto v : reweight) {
+            finalWeight += v->position * u;
+        }
+        vert->position = vert->position * (1 - n*u) + finalWeight;
+    }
+    }
 }
+
+
 
 void Mesh::subdivideRecursive(Halfedge *h) {
     if(m_visited.contains(h->edge)) {
@@ -218,12 +241,9 @@ void Mesh::subdivideRecursive(Halfedge *h) {
     auto nextEdge = h->next->twin;
     auto prevEdge = h->next->next->twin;
 
-//    std::cout<<"edge: ["<<test[0]<<","<<test[1]<<","<<test[2]<<"] - ["<<test2[0]<<","<<test2[1]<<","<<test2[2]<<"]"<<std::endl;
-
     split(h->edge);
     subdivideRecursive(nextEdge);
     subdivideRecursive(prevEdge);
-
 }
 
 
@@ -239,13 +259,6 @@ void Mesh::split(Edge *edge) {
     auto hNext = h->next;
     auto tNext = h->twin->next;
 
-    auto h1 = h->next->edge->halfedge;
-    auto h2 = h->next->next->edge->halfedge;
-    auto h3 = h->twin->edge->halfedge;
-    auto h4 = h->twin->next->edge->halfedge;
-    auto h5 = h->twin->next->next->edge->halfedge;
-
-
     //This is about to get very confusing, so I'm going to organize everything by cardinal direction
     auto newHN = new Halfedge();
     auto newTN = new Halfedge();
@@ -260,6 +273,9 @@ void Mesh::split(Edge *edge) {
     newEN->halfedge = newHN;
     newES->halfedge = newHS;
     newEE->halfedge = newHE;
+    newEN->isNew = true;
+    newES->isNew = true;
+    newEE->isNew = false;
     m_visited.insert(h->edge);
     m_visited.insert(newEE);
     m_visited.insert(newEN);
@@ -271,6 +287,8 @@ void Mesh::split(Edge *edge) {
     newTSF->halfedge = newTS;
     h->face->halfedge = h;
     h->twin->face->halfedge = h->twin;
+    hNext->face = newTNF;
+    prevT->face = newTSF;
 
     auto newV = new Vertex();
     newV->isNew = true;
@@ -323,7 +341,8 @@ void Mesh::split(Edge *edge) {
 
     if (tVert->halfedge == h->twin) tVert->halfedge = newTE;
 
-    newV->position = (hVert->position + tVert->position) / 2.f;
+    newV->position = hVert->position * (3.f/8) + tVert->position * (3.f/8)
+            + v0->position * (1.f/8) + v1->position * (1.f/8);
 }
 
 void Mesh::flip(Edge *edge) {
@@ -346,7 +365,6 @@ void Mesh::flip(Edge *edge) {
         degreeV1++;
         vt = vt->twin->next;
     } while (vt != v1->halfedge);
-    std::cout<<degreeV0<<","<<degreeV1<<std::endl;
     if (degreeV0 == 3 || degreeV1 == 3) return;
 
     auto prevH = h->next->next;
@@ -384,3 +402,14 @@ void Mesh::flip(Edge *edge) {
     h->next->next->next = h;
     t->next->next->next = t;
 }
+
+//void Mesh::getVertices(Vertex *vert) {
+//    if (m_newVerts.contains(vert)) return;
+//    m_newVerts.insert(vert);
+//    auto h = vert->halfedge;
+//    do {
+//        getVertices(h->twin->vertex);
+//        h = h->next->twin;
+//    } while (vert != h->vertex);
+//}
+

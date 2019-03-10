@@ -61,7 +61,11 @@ int main(int argc, char *argv[])
     // TODO
     // Implement the operations
     if (method == "subdivide"){
-        m.subdivide();
+        if (args.size() > 3) {
+            m.subdivide(args[3].toInt());
+        } else {
+            m.subdivide(1);
+        }
     } else if (method == "simplify"){
         //TODO
     } else if (method == "remesh"){

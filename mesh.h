@@ -21,7 +21,7 @@ public:
     void saveToFile(const std::string &filePath);
     void convertToHalfedge();
     void convertFromHalfedge();
-    void subdivide();
+    void subdivide(int iterations);
 
 private:
     std::vector<Eigen::Vector3f> _vertices;
@@ -43,11 +43,12 @@ private:
     struct Vertex {
         Halfedge *halfedge;
         Eigen::Vector3f position;
-        bool isNew = false;
+        bool isNew;
     };
 
     struct Edge {
         Halfedge *halfedge;
+        bool isNew;
     };
 
     struct Face {
@@ -57,6 +58,7 @@ private:
 
     std::map<std::pair<int,int>, Halfedge*> m_edges;
     std::vector<Vertex*> m_verts;
+    QSet<Vertex*> m_newVerts;
 
     QSet<Face*> m_faces;
     QSet<Edge*> m_visited;
@@ -66,6 +68,7 @@ private:
     void split(Edge *edge);
     void flip(Edge *edge);
     void subdivideRecursive(Halfedge *h);
+//    void getVertices(Vertex *vert);
 };
 
 #endif // MESH_H
