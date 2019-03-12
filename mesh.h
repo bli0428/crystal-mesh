@@ -4,8 +4,11 @@
 #include <vector>
 
 #include <Eigen/StdVector>
+#include <Eigen/Geometry>
 #include <map>
+#include <iostream>
 #include <QSet>
+#include <Eigen/Dense>
 
 EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Eigen::Matrix2f)
 EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Eigen::Matrix3f)
@@ -22,6 +25,7 @@ public:
     void convertToHalfedge();
     void convertFromHalfedge();
     void subdivide(int iterations);
+    void simplify(int faces);
 
 private:
     std::vector<Eigen::Vector3f> _vertices;
@@ -44,31 +48,50 @@ private:
         Halfedge *halfedge;
         Eigen::Vector3f position;
         bool isNew;
+        Eigen::Matrix4f quadric;
     };
 
     struct Edge {
         Halfedge *halfedge;
         bool isNew;
+        float cost;
+        Eigen::Vector3f v;
+        Eigen::Matrix4f quadric;
     };
 
     struct Face {
         Halfedge *halfedge;
+        Eigen::Matrix4f quadric;
     };
 
-
-    std::map<std::pair<int,int>, Halfedge*> m_edges;
-    std::vector<Vertex*> m_verts;
     QSet<Vertex*> m_newVerts;
+    QSet<Vertex*> m_newVerts2;
 
     QSet<Face*> m_faces;
     QSet<Edge*> m_visited;
+    QSet<Edge*> m_edges2;
+    std::vector<Edge*> m_edgeObj;
 
     Vertex *m_start;
     void flattenHalfedge(Face *face);
     void split(Edge *edge);
     void flip(Edge *edge);
-    void subdivideRecursive(Halfedge *h);
+    void collapse(Edge *edge);
+    void splitRecursive(Halfedge *h);
     void getVertices(Vertex *vert);
+    void falseEdges(Vertex *vert);
+    void calcFaceQuadrics(Face *face);
+    Eigen::Vector3f getP(Vertex *v1, Vertex *v2, Vertex *v3);
+
+    struct QComparator {
+        bool operator() (Edge *e1, Edge *e2) {
+            if (e1->cost == e2->cost) {
+                return e1 < e2;
+            } else {
+                return e1->cost < e2->cost;
+            }
+        }
+    };
 };
 
 #endif // MESH_H

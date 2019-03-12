@@ -1,9 +1,8 @@
 #include "mesh.h"
-#include <iostream>
 #include <fstream>
 #include <QFileInfo>
 #include <QString>
-
+#include <set>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "util/tiny_obj_loader.h"
@@ -85,17 +84,21 @@ void Mesh::saveToFile(const std::string &filePath)
 
 void Mesh::convertToHalfedge() {
 
+    std::map<std::pair<int,int>, Halfedge*> edges;
+    std::vector<Vertex*> verts;
+
     //initialize vertices
     int numVerts = _vertices.size();
-    m_verts.resize(numVerts);
+    verts.resize(numVerts);
     for (int i = 0; i < numVerts; i++) {
-        m_verts[i] = new Vertex();
-        m_verts[i]->isNew = false;
-        m_verts[i]->position = _vertices[i];
+        verts[i] = new Vertex();
+        verts[i]->isNew = false;
+        verts[i]->position = _vertices[i];
     }
 
-    m_start = m_verts[0];
+    m_start = verts[0];
 
+    m_edgeObj.reserve(_vertices.size() + _faces.size() - 2);
     // initialize half-edges
     for (auto face : _faces) {
         for (int i = 0; i < 3; i++) {
@@ -103,8 +106,8 @@ void Mesh::convertToHalfedge() {
             if (j >= 3) j = 0;
             pair<int,int> edge(face[i], face[j]);
             auto he = new Halfedge();
-            m_edges[edge] = he;
-            he->vertex = m_verts[face[i]];
+            edges[edge] = he;
+            he->vertex = verts[face[i]];
 
             // not really an issue, but self-note: vertex half-edge will be reassigned for every single edge coming from vertex
             he->vertex->halfedge = he;
@@ -115,12 +118,13 @@ void Mesh::convertToHalfedge() {
             if (j >= 3) j = 0;
             int k = j + 1;
             if (k >= 3) k = 0;
-            m_edges[pair<int,int>(face[i], face[j])]->next = m_edges[pair<int,int>(face[j], face[k])];
-            if (m_edges.find(pair<int,int>(face[j], face[i])) != m_edges.end()) {
+            edges[pair<int,int>(face[i], face[j])]->next = edges[pair<int,int>(face[j], face[k])];
+            if (edges.find(pair<int,int>(face[j], face[i])) != edges.end()) {
                 auto edgeObj = new Edge();
+                m_edgeObj.push_back(edgeObj);
                 edgeObj->isNew = false;
-                auto hij = m_edges[pair<int,int>(face[i], face[j])];
-                auto hji = m_edges[pair<int,int>(face[j], face[i])];
+                auto hij = edges[pair<int,int>(face[i], face[j])];
+                auto hji = edges[pair<int,int>(face[j], face[i])];
                 edgeObj->halfedge = hij;
                 hij->twin = hji;
                 hji->twin = hij;
@@ -134,13 +138,62 @@ void Mesh::convertToHalfedge() {
 
     for (auto face : _faces) {
         auto faceObj = new Face();
-        faceObj->halfedge = m_edges[pair<int,int>(face[0], face[1])];
+        faceObj->halfedge = edges[pair<int,int>(face[0], face[1])];
         for (int i = 0; i < 3; i++) {
             int j = i + 1;
             if (j >= 3) j = 0;
             pair<int,int> edge(face[i], face[j]);
-            m_edges[edge]->face = faceObj;
+            edges[edge]->face = faceObj;
         }
+
+        auto v1 = faceObj->halfedge->vertex;
+        auto v2 = faceObj->halfedge->next->vertex;
+        auto v3 = faceObj->halfedge->next->next->vertex;
+
+        Eigen::Vector3f vecA = v2->position - v1->position;
+        Eigen::Vector3f vecB = v3->position - v1->position;
+
+        auto normal = vecA.cross(vecB);
+        normal.normalize();
+        auto p = getP(v1, v2, v3);
+        auto d = -p.dot(normal);
+        faceObj->quadric << normal[0] * normal[0], normal[0] * normal[1], normal[0] * normal[2], normal[0] * d,
+                            normal[0] * normal[1], normal[1] * normal[1], normal[1] * normal[2], normal[1] * d,
+                            normal[0] * normal[2], normal[1] * normal[2], normal[2] * normal[2], normal[2] * d,
+                            normal[0] * d, normal[1] * d, normal[2] * d, d * d;
+    }
+
+    for (auto vert : verts) {
+        auto h = vert->halfedge;
+        Matrix4f q;
+        q << 0, 0, 0, 0,
+             0, 0, 0, 0,
+             0, 0, 0, 0,
+             0, 0, 0, 0;
+        do {
+            q += h->face->quadric;
+            h = h->twin->next;
+        } while (h != vert->halfedge);
+        vert->quadric = q;
+    }
+
+    for (auto edgeObj : m_edgeObj) {
+        auto h = edgeObj->halfedge;
+        auto t = h->twin;
+        auto hVert = h->vertex;
+        auto tVert = t->vertex;
+
+        Matrix4f quadric = (hVert->quadric + tVert->quadric);
+        Matrix4f q;
+        q << quadric(0,0), quadric(0,1), quadric(0,2), quadric(0,3),
+             quadric(0,1), quadric(1,1), quadric(1,2), quadric(1,3),
+             quadric(0,2), quadric(1,2), quadric(2,2), quadric(2,3),
+             0, 0, 0, 1;
+        auto v = q.colPivHouseholderQr().solve(Vector4f(0,0,0,1));
+
+        edgeObj->v = Vector3f(v[0], v[1], v[2]);
+        edgeObj->quadric = quadric;
+        edgeObj->cost = v.transpose() * quadric * v;
     }
 
 }
@@ -177,6 +230,7 @@ void Mesh::convertFromHalfedge() {
     for (auto vert : vertexPtrs) {
         newVertices.push_back(vert->position);
     }
+    m_faces.clear();
 
     _faces = newFaces;
     _vertices = newVertices;
@@ -192,54 +246,70 @@ void Mesh::flattenHalfedge(Face *face) {
 }
 
 void Mesh::subdivide(int iterations) {
-    for (int i = 0; i < iterations; i++) {
+    for (int i = 0; i < 2; i++) {
+        convertToHalfedge();
+        getVertices(m_start);
+        std::cout<<m_newVerts.size()<<std::endl;
+        for (auto vert : m_newVerts) vert->isNew = false;
+        m_newVerts.clear();
+        m_faces.clear();
+        m_visited.clear();
+        falseEdges(m_start);
+        m_edges2.clear();
 
-    auto h = m_start->halfedge;
-    auto nextEdge = m_start->halfedge->next;
-    auto prevEdge = m_start->halfedge->next->next;;
-    subdivideRecursive(h);
-    subdivideRecursive(nextEdge);
-    subdivideRecursive(prevEdge);
+        auto h = m_start->halfedge;
+        auto nextEdge = m_start->halfedge->next;
+        auto prevEdge = m_start->halfedge->next->next;;
+        splitRecursive(h);
+        splitRecursive(nextEdge);
+        splitRecursive(prevEdge);
 
-    for (auto edge : m_visited) {
-        if (edge->isNew && edge->halfedge->vertex->isNew != edge->halfedge->twin->vertex->isNew) {
-            flip(edge);
+
+        for (auto edge : m_visited) {
+            if (edge->isNew && edge->halfedge->vertex->isNew != edge->halfedge->twin->vertex->isNew) {
+                flip(edge);
+            }
+            edge->isNew = false;
         }
-        edge->isNew = false;
-    }
 
+        getVertices(m_start);
+        const float pi = 3.141592653589793f;
+        for (auto vert : m_newVerts) {
+            if (vert->isNew) {
+                vert->isNew = false;
+                continue;
+            }
+            // Get old vertices
+            int n = 0;
+            auto vh = vert->halfedge;
+            std::vector<Vertex*> reweight;
+            do {
+                n++;
+                auto reVert = vh->next->twin->next->twin->next->twin->vertex;
+                //auto reVert = vh->twin->vertex;
+                reweight.push_back(reVert);
+                vh = vh->twin->next;
+            } while (vh != vert->halfedge);
+            float u = (1.f/n) * (5.f/8 - std::pow(3.f/8 + std::cos(2 * pi/n)/4.f, 2));
+            Vector3f finalWeight = Vector3f(0,0,0);
+            for (auto v : reweight) {
+                finalWeight += v->position * u;
+            }
+            vert->position = vert->position * (1 - n*u) + finalWeight;
+        }
+        m_visited.clear();
+        m_newVerts.clear();
+        convertFromHalfedge();
+    }
+    falseEdges(m_start);
     getVertices(m_start);
-    const float pi = 3.141592653589793f;
-    for (auto vert : m_newVerts) {
-        if (vert->isNew) {
-            vert->isNew = false;
-            continue;
-        }
-        // Get old vertices
-        int n = 0;
-        auto vh = vert->halfedge;
-        std::vector<Vertex*> reweight;
-        do {
-            n++;
-            auto reVert = vh->next->twin->next->twin->next->twin->vertex;
-            //auto reVert = vh->twin->vertex;
-            reweight.push_back(reVert);
-            vh = vh->twin->next;
-        } while (vh != vert->halfedge);
-        float u = (1.f/n) * (5.f/8 - std::pow(3.f/8 + std::cos(2 * pi/n)/4.f, 2));
-        Vector3f finalWeight = Vector3f(0,0,0);
-        for (auto v : reweight) {
-            finalWeight += v->position * u;
-        }
-        vert->position = vert->position * (1 - n*u) + finalWeight;
-    }
-    m_visited.clear();
-    }
+    std::cout<<m_newVerts.size()<<std::endl;
+//    std::cout<<m_edges2.size()<<std::endl;
 }
 
 
 
-void Mesh::subdivideRecursive(Halfedge *h) {
+void Mesh::splitRecursive(Halfedge *h) {
     if(m_visited.contains(h->edge)) {
         return;
     }
@@ -247,10 +317,141 @@ void Mesh::subdivideRecursive(Halfedge *h) {
     auto prevEdge = h->next->next->twin;
 
     split(h->edge);
-    subdivideRecursive(nextEdge);
-    subdivideRecursive(prevEdge);
+    splitRecursive(nextEdge);
+    splitRecursive(prevEdge);
 }
 
+void Mesh::simplify(int faces) {
+    std::set<Edge*, QComparator> pQueue;
+    for (auto edge : m_edgeObj) {
+        pQueue.insert(edge);
+    }
+    for (int i = 0; i < 3; i++) {
+        auto front = pQueue.begin();
+        auto edge = *(front);
+        auto m = edge->halfedge->twin->vertex;
+        pQueue.erase(front);
+        collapse(edge);
+
+        //update edge costs
+        auto h = m->halfedge;
+        do {
+            auto edgeObj = h->edge;
+            pQueue.erase(pQueue.find(edgeObj));
+            Matrix4f quadric = (m->quadric + h->twin->vertex->quadric);
+            Matrix4f q;
+            q << quadric(0,0), quadric(0,1), quadric(0,2), quadric(0,3),
+                 quadric(0,1), quadric(1,1), quadric(1,2), quadric(1,3),
+                 quadric(0,2), quadric(1,2), quadric(2,2), quadric(2,3),
+                 0, 0, 0, 1;
+            auto v = q.colPivHouseholderQr().solve(Vector4f(0,0,0,1));
+
+            edgeObj->v = Vector3f(v[0], v[1], v[2]);
+            edgeObj->quadric = quadric;
+            edgeObj->cost = v.transpose() * quadric * v;
+            pQueue.insert(edgeObj);
+            h = h->twin->next;
+        } while (h != m->halfedge);
+    }
+}
+
+void Mesh::collapse(Edge *edge) {
+    auto h = edge->halfedge;
+    auto t = h->twin;
+    auto a = h->next->next->vertex;
+    auto b = t->next->next->vertex;
+    auto c = h->vertex;
+    auto d = t->vertex;
+
+
+    //Check to see if edge can be collapsed
+    // I don't do the degree 3 check since if there must be exactly two common vertices, then by definition there can't be a common neighbor with degree 3.
+    int commonVerts = 0;
+    auto h1 = c->halfedge;
+    do {
+        auto h2 = d->halfedge;
+        do {
+            if (h1->twin->vertex == h2->twin->vertex) commonVerts+=1;
+            h2 = h2->twin->next;
+        } while (h2 != d->halfedge);
+        h1 = h1->twin->next;
+    } while (h1 != c->halfedge);
+
+    if (commonVerts != 2) {
+        return;
+    }
+
+    auto m = d;
+    m->isNew = true;
+    m->position = edge->v;
+    m->quadric = edge->quadric;
+
+    if (h->vertex == m_start) {
+        m_start = m;
+    }
+
+    Halfedge *cH = c->halfedge;
+    do {
+        cH->vertex = m;
+        cH = cH->twin->next;
+    } while (cH != c->halfedge);
+
+
+    auto hAD = h->next;
+    auto tAD = hAD->twin;
+    auto hAC = h->next->next;
+    auto tAC = hAC->twin;
+
+    auto hBC = t->next;
+    auto tBC = hBC->twin;
+    auto hBD = t->next->next;
+    auto tBD = hBD->twin;
+
+
+    auto ad = hAD->edge;
+    auto bd = hBD->edge;
+    auto ac = hAC->edge;
+    auto bc = hBC->edge;
+
+    tAD->twin = tAC;
+    tAC->twin = tAD;
+    tBC->twin = tBD;
+    tBD->twin = tBC;
+
+    tAC->edge = ad;
+    tBC->edge = bd;
+
+
+
+    if (d->halfedge == t) {
+        d->halfedge = d->halfedge->twin->next;
+    }
+
+    if (a->halfedge == hAC) {
+        a->halfedge = tAD;
+    }
+
+    if (b->halfedge == hBD) {
+        b->halfedge = tBC;
+    }
+
+
+    delete c;
+    delete h->face;
+    delete t->face;
+    delete ac;
+    delete bd;
+    delete h;
+    delete t;
+    delete hAD;
+    delete hAC;
+    delete hBD;
+    delete hBC;
+    delete edge;
+
+
+
+}
 
 void Mesh::split(Edge *edge) {
 
@@ -419,3 +620,29 @@ void Mesh::getVertices(Vertex *vert) {
     } while (h != hVert);
 }
 
+void Mesh::falseEdges(Vertex *vert) {
+//    std::cout<<m_edges2.size()<<std::endl;
+    if (m_newVerts2.contains(vert)) return;
+    vert->halfedge->edge->isNew = false;
+    m_edges2.insert(vert->halfedge->edge);
+    m_newVerts2.insert(vert);
+    auto hVert = vert->halfedge;
+    auto h = vert->halfedge;
+
+    do {
+        falseEdges(h->twin->vertex);
+        h = h->twin->next;
+    } while (h != hVert);
+}
+
+Vector3f Mesh::getP(Vertex *v1, Vertex *v2, Vertex *v3) {
+    auto pos1 = v1->position;
+    auto pos2 = v2->position;
+    auto pos3 = v3->position;
+
+    auto midPoint = (pos1 + pos2)/2.f;
+
+    return (midPoint + pos3) / 2.f;
+
+
+}

@@ -68,6 +68,13 @@ int main(int argc, char *argv[])
         }
     } else if (method == "simplify"){
         //TODO
+        if (method == "simplify") {
+            if (args.size() > 3) {
+                m.simplify(args[3].toInt());
+            } else {
+                m.simplify(1);
+            }
+        }
     } else if (method == "remesh"){
         //TODO
     } else if (method == "denoise") {
