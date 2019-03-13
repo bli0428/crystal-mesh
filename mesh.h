@@ -26,6 +26,7 @@ public:
     void convertFromHalfedge();
     void subdivide(int iterations);
     void simplify(int faces);
+    void remesh(int iterations, float weight);
 
 private:
     std::vector<Eigen::Vector3f> _vertices;
@@ -66,22 +67,23 @@ private:
 
     QSet<Vertex*> m_newVerts;
     QSet<Vertex*> m_newVerts2;
-
+    QSet<Edge*> m_edges;
     QSet<Face*> m_faces;
     QSet<Edge*> m_visited;
     QSet<Edge*> m_edges2;
-    std::vector<Edge*> m_edgeObj;
 
     Vertex *m_start;
     void flattenHalfedge(Face *face);
-    void split(Edge *edge);
+    void split(Edge *edge, bool toMidpoint);
     void flip(Edge *edge);
-    void collapse(Edge *edge);
+    bool collapse(Edge *edge, bool toMidpoint);
     void splitRecursive(Halfedge *h);
     void getVertices(Vertex *vert);
     void falseEdges(Vertex *vert);
     void calcFaceQuadrics(Face *face);
     Eigen::Vector3f getP(Vertex *v1, Vertex *v2, Vertex *v3);
+    int getDegree(Vertex *vert);
+    void getEdges(Face *face);
 
     struct QComparator {
         bool operator() (Edge *e1, Edge *e2) {

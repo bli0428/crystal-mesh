@@ -68,15 +68,21 @@ int main(int argc, char *argv[])
         }
     } else if (method == "simplify"){
         //TODO
-        if (method == "simplify") {
             if (args.size() > 3) {
                 m.simplify(args[3].toInt());
             } else {
                 m.simplify(1);
             }
-        }
     } else if (method == "remesh"){
         //TODO
+        if (args.size() > 5) {
+            m.remesh(args[3].toInt(), args[4].toFloat());
+        } else if (args.size() == 4) {
+            m.remesh(args[3].toInt(), 0.5f);
+        } else {
+            m.remesh(1, 0.5f);
+        }
+
     } else if (method == "denoise") {
         //TODO
     } else {

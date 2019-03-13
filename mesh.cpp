@@ -98,7 +98,8 @@ void Mesh::convertToHalfedge() {
 
     m_start = verts[0];
 
-    m_edgeObj.reserve(_vertices.size() + _faces.size() - 2);
+    std::vector<Edge*> edgeObjs;
+    edgeObjs.reserve(_vertices.size() + _faces.size() - 2);
     // initialize half-edges
     for (auto face : _faces) {
         for (int i = 0; i < 3; i++) {
@@ -121,7 +122,7 @@ void Mesh::convertToHalfedge() {
             edges[pair<int,int>(face[i], face[j])]->next = edges[pair<int,int>(face[j], face[k])];
             if (edges.find(pair<int,int>(face[j], face[i])) != edges.end()) {
                 auto edgeObj = new Edge();
-                m_edgeObj.push_back(edgeObj);
+                edgeObjs.push_back(edgeObj);
                 edgeObj->isNew = false;
                 auto hij = edges[pair<int,int>(face[i], face[j])];
                 auto hji = edges[pair<int,int>(face[j], face[i])];
@@ -177,7 +178,7 @@ void Mesh::convertToHalfedge() {
         vert->quadric = q;
     }
 
-    for (auto edgeObj : m_edgeObj) {
+    for (auto edgeObj : edgeObjs) {
         auto h = edgeObj->halfedge;
         auto t = h->twin;
         auto hVert = h->vertex;
@@ -195,7 +196,6 @@ void Mesh::convertToHalfedge() {
         edgeObj->quadric = quadric;
         edgeObj->cost = v.transpose() * quadric * v;
     }
-
 }
 
 void Mesh::convertFromHalfedge() {
@@ -246,10 +246,9 @@ void Mesh::flattenHalfedge(Face *face) {
 }
 
 void Mesh::subdivide(int iterations) {
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < iterations; i++) {
         convertToHalfedge();
         getVertices(m_start);
-        std::cout<<m_newVerts.size()<<std::endl;
         for (auto vert : m_newVerts) vert->isNew = false;
         m_newVerts.clear();
         m_faces.clear();
@@ -303,8 +302,7 @@ void Mesh::subdivide(int iterations) {
     }
     falseEdges(m_start);
     getVertices(m_start);
-    std::cout<<m_newVerts.size()<<std::endl;
-//    std::cout<<m_edges2.size()<<std::endl;
+
 }
 
 
@@ -316,28 +314,46 @@ void Mesh::splitRecursive(Halfedge *h) {
     auto nextEdge = h->next->twin;
     auto prevEdge = h->next->next->twin;
 
-    split(h->edge);
+    split(h->edge, false);
     splitRecursive(nextEdge);
     splitRecursive(prevEdge);
 }
 
 void Mesh::simplify(int faces) {
+    getEdges(m_start->halfedge->face);
     std::set<Edge*, QComparator> pQueue;
-    for (auto edge : m_edgeObj) {
+    for (auto edge : m_edges) {
         pQueue.insert(edge);
     }
-    for (int i = 0; i < 3; i++) {
-        auto front = pQueue.begin();
-        auto edge = *(front);
-        auto m = edge->halfedge->twin->vertex;
-        pQueue.erase(front);
-        collapse(edge);
+
+    for (int i = 0; i < 7; i++) {
+
+        if (pQueue.empty()) {
+            break;
+        }
+
+        Edge* edge;
+        Vertex* m;
+        Edge* ac;
+        Edge* bc;
+        do {
+            auto front = pQueue.begin();
+            edge = *(front);
+            pQueue.erase(front);
+            m = edge->halfedge->twin->vertex;
+            ac = edge->halfedge->next->next->edge;
+            bc = edge->halfedge->twin->next->edge;
+            if (pQueue.empty()) return;
+        } while (!collapse(edge, false));
+
+        pQueue.erase(ac);
+        pQueue.erase(bc);
 
         //update edge costs
         auto h = m->halfedge;
         do {
             auto edgeObj = h->edge;
-            pQueue.erase(pQueue.find(edgeObj));
+            pQueue.erase(edgeObj);
             Matrix4f quadric = (m->quadric + h->twin->vertex->quadric);
             Matrix4f q;
             q << quadric(0,0), quadric(0,1), quadric(0,2), quadric(0,3),
@@ -355,7 +371,7 @@ void Mesh::simplify(int faces) {
     }
 }
 
-void Mesh::collapse(Edge *edge) {
+bool Mesh::collapse(Edge *edge, bool toMidpoint) {
     auto h = edge->halfedge;
     auto t = h->twin;
     auto a = h->next->next->vertex;
@@ -378,12 +394,16 @@ void Mesh::collapse(Edge *edge) {
     } while (h1 != c->halfedge);
 
     if (commonVerts != 2) {
-        return;
+        return false;
     }
 
     auto m = d;
     m->isNew = true;
-    m->position = edge->v;
+    if (toMidpoint) {
+        m->position = (c->position + d->position) / 2.f;
+    } else {
+        m->position = edge->v;
+    }
     m->quadric = edge->quadric;
 
     if (h->vertex == m_start) {
@@ -420,11 +440,12 @@ void Mesh::collapse(Edge *edge) {
 
     tAC->edge = ad;
     tBC->edge = bd;
+    ad->halfedge = tAD;
+    bd->halfedge = tBD;
 
 
-
-    if (d->halfedge == t) {
-        d->halfedge = d->halfedge->twin->next;
+    if (d->halfedge == t || d->halfedge == hAD) {
+        d->halfedge = tBD;
     }
 
     if (a->halfedge == hAC) {
@@ -440,7 +461,7 @@ void Mesh::collapse(Edge *edge) {
     delete h->face;
     delete t->face;
     delete ac;
-    delete bd;
+    delete bc;
     delete h;
     delete t;
     delete hAD;
@@ -449,11 +470,11 @@ void Mesh::collapse(Edge *edge) {
     delete hBC;
     delete edge;
 
-
+    return true;
 
 }
 
-void Mesh::split(Edge *edge) {
+void Mesh::split(Edge *edge, bool toMidpoint) {
 
     auto h = edge->halfedge;
     auto prevH = h->next->next;
@@ -547,8 +568,12 @@ void Mesh::split(Edge *edge) {
 
     if (tVert->halfedge == h->twin) tVert->halfedge = newTE;
 
-    newV->position = hVert->position * (3.f/8) + tVert->position * (3.f/8)
-            + v0->position * (1.f/8) + v1->position * (1.f/8);
+    if (toMidpoint) {
+        newV->position = (hVert->position + tVert->position) / 2.f;
+    } else {
+        newV->position = hVert->position * (3.f/8) + tVert->position * (3.f/8)
+                + v0->position * (1.f/8) + v1->position * (1.f/8);
+    }
 }
 
 void Mesh::flip(Edge *edge) {
@@ -612,12 +637,27 @@ void Mesh::flip(Edge *edge) {
 void Mesh::getVertices(Vertex *vert) {
     if (m_newVerts.contains(vert)) return;
     m_newVerts.insert(vert);
-    auto hVert = vert->halfedge;
     auto h = vert->halfedge;
     do {
         getVertices(h->twin->vertex);
         h = h->twin->next;
-    } while (h != hVert);
+    } while (h != vert->halfedge);
+}
+
+void Mesh::getEdges(Face *face) {
+    auto e1 = face->halfedge->edge;
+    auto e2 = face->halfedge->next->edge;
+    auto e3 = face->halfedge->next->next->edge;
+    if (m_edges.contains(e1) && m_edges.contains(e2) && m_edges.contains(e3)) return;
+    m_edges.insert(e1);
+    m_edges.insert(e2);
+    m_edges.insert(e3);
+
+    auto h = face->halfedge;
+    do {
+        getEdges(h->twin->face);
+        h = h->next;
+    } while (h != face->halfedge);
 }
 
 void Mesh::falseEdges(Vertex *vert) {
@@ -645,4 +685,84 @@ Vector3f Mesh::getP(Vertex *v1, Vertex *v2, Vertex *v3) {
     return (midPoint + pos3) / 2.f;
 
 
+}
+
+void Mesh::remesh(int iterations, float weight) {
+    for (int i = 0; i<iterations; i++) {
+        getEdges(m_start->halfedge->face);
+        float sum = 0;
+        for (auto edge : m_edges) {
+            sum += (edge->halfedge->vertex->position - edge->halfedge->twin->vertex->position).norm();
+        }
+        float l = sum / m_edges.size();
+
+        std::vector<Edge*> shortEdges;
+        std::vector<Edge*> longEdges;
+        for (auto edge: m_edges) {
+            auto len = (edge->halfedge->vertex->position - edge->halfedge->twin->vertex->position).norm();
+            if (len > 4.f * l / 3.f) {
+                longEdges.push_back(edge);
+            } else if (len < 4.f * l / 5.f){
+                shortEdges.push_back(edge);
+            }
+        }
+        for (auto edge : shortEdges) {
+            collapse(edge, true);
+        }
+        for (auto edge : longEdges) {
+            split(edge, true);
+        }
+
+        m_edges.clear();
+        getEdges(m_start->halfedge->face);
+        for (auto edge : m_edges) {
+            float d1 = (getDegree(edge->halfedge->vertex) + getDegree(edge->halfedge->twin->vertex)) / 2.f;
+            float d2 = (getDegree(edge->halfedge->next->next->vertex) + getDegree(edge->halfedge->twin->next->twin->vertex)) / 2.f;
+
+            if (std::abs(6 - d1) > std::abs(6 - d2)) {
+                flip(edge);
+            }
+        }
+
+        getVertices(m_start);
+
+        for (auto vert : m_newVerts) {
+            int numFaces = 0;
+            auto h = vert->halfedge;
+            Vector3f normal = Vector3f(0,0,0);
+            Vector3f centroid = Vector3f(0,0,0);
+            do {
+                centroid += h->twin->vertex->position;
+                auto faceObj = h->face;
+                auto v1 = faceObj->halfedge->vertex;
+                auto v2 = faceObj->halfedge->next->vertex;
+                auto v3 = faceObj->halfedge->next->next->vertex;
+
+                Eigen::Vector3f vecA = v2->position - v1->position;
+                Eigen::Vector3f vecB = v3->position - v1->position;
+
+                normal += vecA.cross(vecB).normalized();
+                numFaces++;
+                h = h->twin->next;
+            } while (h != vert->halfedge);
+
+            normal /= numFaces;
+            centroid /= numFaces;
+            Vector3f x = vert->position;
+            Vector3f v = centroid - x;
+            v = v - (normal.dot(v)) * normal;
+            vert->position = x + weight * v;
+        }
+        m_edges.clear();
+    }
+}
+
+int Mesh::getDegree(Vertex *vert) {
+    auto h = vert->halfedge;
+    int degree = 0;
+    do {
+        degree++;
+        h = h->twin->next;
+    } while (h != vert->halfedge);
+    return degree;
 }
