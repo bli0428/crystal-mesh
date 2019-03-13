@@ -706,12 +706,21 @@ void Mesh::remesh(int iterations, float weight) {
                 shortEdges.push_back(edge);
             }
         }
-        for (auto edge : shortEdges) {
-            collapse(edge, true);
-        }
+        QSet<Edge*> ignore;
+
         for (auto edge : longEdges) {
             split(edge, true);
         }
+
+        for (auto edge : shortEdges) {
+            if (ignore.contains(edge)) continue;
+            auto ac = edge->halfedge->next->next->edge;
+            auto bc = edge->halfedge->twin->next->edge;
+            collapse(edge, true);
+            ignore.insert(ac);
+            ignore.insert(bc);
+        }
+
 
         m_edges.clear();
         getEdges(m_start->halfedge->face);
