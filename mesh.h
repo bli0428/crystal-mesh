@@ -86,7 +86,7 @@ private:
     void getEdges(Face *face);
 
     struct QComparator {
-        bool operator() (Edge *e1, Edge *e2) {
+        bool operator() (Edge *e1, Edge *e2) const {
             if (e1->cost == e2->cost) {
                 return e1 < e2;
             } else {

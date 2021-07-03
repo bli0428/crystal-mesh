@@ -247,14 +247,14 @@ void Mesh::flattenHalfedge(Face *face) {
 
 void Mesh::subdivide(int iterations) {
     for (int i = 0; i < iterations; i++) {
-        convertToHalfedge();
-        getVertices(m_start);
-        for (auto vert : m_newVerts) vert->isNew = false;
-        m_newVerts.clear();
-        m_faces.clear();
-        m_visited.clear();
-        falseEdges(m_start);
-        m_edges2.clear();
+//        convertToHalfedge();
+//        getVertices(m_start);
+//        for (auto vert : m_newVerts) vert->isNew = false;
+//        m_newVerts.clear();
+//        m_faces.clear();
+//        m_visited.clear();
+//        falseEdges(m_start);
+//        m_edges2.clear();
 
         auto h = m_start->halfedge;
         auto nextEdge = m_start->halfedge->next;
@@ -263,7 +263,6 @@ void Mesh::subdivide(int iterations) {
         splitRecursive(nextEdge);
         splitRecursive(prevEdge);
 
-
         for (auto edge : m_visited) {
             if (edge->isNew && edge->halfedge->vertex->isNew != edge->halfedge->twin->vertex->isNew) {
                 flip(edge);
@@ -271,37 +270,39 @@ void Mesh::subdivide(int iterations) {
             edge->isNew = false;
         }
 
-        getVertices(m_start);
-        const float pi = 3.141592653589793f;
-        for (auto vert : m_newVerts) {
-            if (vert->isNew) {
-                vert->isNew = false;
-                continue;
-            }
-            // Get old vertices
-            int n = 0;
-            auto vh = vert->halfedge;
-            std::vector<Vertex*> reweight;
-            do {
-                n++;
-                auto reVert = vh->next->twin->next->twin->next->twin->vertex;
-                //auto reVert = vh->twin->vertex;
-                reweight.push_back(reVert);
-                vh = vh->twin->next;
-            } while (vh != vert->halfedge);
-            float u = (1.f/n) * (5.f/8 - std::pow(3.f/8 + std::cos(2 * pi/n)/4.f, 2));
-            Vector3f finalWeight = Vector3f(0,0,0);
-            for (auto v : reweight) {
-                finalWeight += v->position * u;
-            }
-            vert->position = vert->position * (1 - n*u) + finalWeight;
-        }
         m_visited.clear();
-        m_newVerts.clear();
-        convertFromHalfedge();
+
+//        getVertices(m_start);
+//        const float pi = 3.141592653589793f;
+//        for (auto vert : m_newVerts) {
+//            if (vert->isNew) {
+//                vert->isNew = false;
+//                continue;
+//            }
+//            // Get old vertices
+//            int n = 0;
+//            auto vh = vert->halfedge;
+//            std::vector<Vertex*> reweight;
+//            do {
+//                n++;
+//                auto reVert = vh->next->twin->next->twin->next->twin->vertex;
+//                //auto reVert = vh->twin->vertex;
+//                reweight.push_back(reVert);
+//                vh = vh->twin->next;
+//            } while (vh != vert->halfedge);
+//            float u = (1.f/n) * (5.f/8 - std::pow(3.f/8 + std::cos(2 * pi/n)/4.f, 2));
+//            Vector3f finalWeight = Vector3f(0,0,0);
+//            for (auto v : reweight) {
+//                finalWeight += v->position * u;
+//            }
+//            vert->position = vert->position * (1 - n*u) + finalWeight;
+//        }
+//        m_visited.clear();
+//        m_newVerts.clear();
+//        convertFromHalfedge();
     }
-    falseEdges(m_start);
-    getVertices(m_start);
+//    falseEdges(m_start);
+//    getVertices(m_start);
 
 }
 
@@ -314,7 +315,7 @@ void Mesh::splitRecursive(Halfedge *h) {
     auto nextEdge = h->next->twin;
     auto prevEdge = h->next->next->twin;
 
-    split(h->edge, false);
+    split(h->edge, true);
     splitRecursive(nextEdge);
     splitRecursive(prevEdge);
 }

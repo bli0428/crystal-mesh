@@ -648,8 +648,75 @@ release\main.obj: main.cpp C:\Qt\5.12.1\msvc2017_64\include\QtCore\QCoreApplicat
 		Eigen\src\Core\util\ReenableStupidWarnings.h \
 		Eigen\src\StlSupport\StdVector.h \
 		Eigen\src\StlSupport\details.h \
+		Eigen\Geometry \
+		Eigen\SVD \
+		Eigen\QR \
+		Eigen\Cholesky \
+		Eigen\src\Cholesky\LLT.h \
+		Eigen\src\Cholesky\LDLT.h \
+		Eigen\src\misc\lapacke.h \
+		Eigen\src\misc\lapacke_mangling.h \
+		Eigen\src\Cholesky\LLT_LAPACKE.h \
+		Eigen\Jacobi \
+		Eigen\src\Jacobi\Jacobi.h \
+		Eigen\Householder \
+		Eigen\src\Householder\Householder.h \
+		Eigen\src\Householder\HouseholderSequence.h \
+		Eigen\src\Householder\BlockHouseholder.h \
+		Eigen\src\QR\HouseholderQR.h \
+		Eigen\src\QR\FullPivHouseholderQR.h \
+		Eigen\src\QR\ColPivHouseholderQR.h \
+		Eigen\src\QR\CompleteOrthogonalDecomposition.h \
+		Eigen\src\QR\HouseholderQR_LAPACKE.h \
+		Eigen\src\QR\ColPivHouseholderQR_LAPACKE.h \
+		Eigen\src\misc\RealSvd2x2.h \
+		Eigen\src\SVD\UpperBidiagonalization.h \
+		Eigen\src\SVD\SVDBase.h \
+		Eigen\src\SVD\JacobiSVD.h \
+		Eigen\src\SVD\BDCSVD.h \
+		Eigen\src\SVD\JacobiSVD_LAPACKE.h \
+		Eigen\LU \
+		Eigen\src\misc\Kernel.h \
+		Eigen\src\misc\Image.h \
+		Eigen\src\LU\FullPivLU.h \
+		Eigen\src\LU\PartialPivLU.h \
+		Eigen\src\LU\PartialPivLU_LAPACKE.h \
+		Eigen\src\LU\Determinant.h \
+		Eigen\src\LU\InverseImpl.h \
+		Eigen\src\LU\arch\Inverse_SSE.h \
+		Eigen\src\Geometry\OrthoMethods.h \
+		Eigen\src\Geometry\EulerAngles.h \
+		Eigen\src\Geometry\Homogeneous.h \
+		Eigen\src\Geometry\RotationBase.h \
+		Eigen\src\Geometry\Rotation2D.h \
+		Eigen\src\Geometry\Quaternion.h \
+		Eigen\src\Geometry\AngleAxis.h \
+		Eigen\src\Geometry\Transform.h \
+		Eigen\src\Geometry\Translation.h \
+		Eigen\src\Geometry\Scaling.h \
+		Eigen\src\Geometry\Hyperplane.h \
+		Eigen\src\Geometry\ParametrizedLine.h \
+		Eigen\src\Geometry\AlignedBox.h \
+		Eigen\src\Geometry\Umeyama.h \
+		Eigen\src\Geometry\arch\Geometry_SSE.h \
 		C:\Qt\5.12.1\msvc2017_64\include\QtCore\QSet \
-		C:\Qt\5.12.1\msvc2017_64\include\QtCore\qset.h
+		C:\Qt\5.12.1\msvc2017_64\include\QtCore\qset.h \
+		Eigen\Dense \
+		Eigen\Eigenvalues \
+		Eigen\src\Eigenvalues\Tridiagonalization.h \
+		Eigen\src\Eigenvalues\RealSchur.h \
+		Eigen\src\Eigenvalues\HessenbergDecomposition.h \
+		Eigen\src\Eigenvalues\EigenSolver.h \
+		Eigen\src\Eigenvalues\SelfAdjointEigenSolver.h \
+		Eigen\src\Eigenvalues\GeneralizedSelfAdjointEigenSolver.h \
+		Eigen\src\Eigenvalues\ComplexSchur.h \
+		Eigen\src\Eigenvalues\ComplexEigenSolver.h \
+		Eigen\src\Eigenvalues\RealQZ.h \
+		Eigen\src\Eigenvalues\GeneralizedEigenSolver.h \
+		Eigen\src\Eigenvalues\MatrixBaseEigenvalues.h \
+		Eigen\src\Eigenvalues\RealSchur_LAPACKE.h \
+		Eigen\src\Eigenvalues\ComplexSchur_LAPACKE.h \
+		Eigen\src\Eigenvalues\SelfAdjointEigenSolver_LAPACKE.h
 
 release\mesh.obj: mesh.cpp mesh.h \
 		Eigen\StdVector \
@@ -794,6 +861,57 @@ release\mesh.obj: mesh.cpp mesh.h \
 		Eigen\src\Core\util\ReenableStupidWarnings.h \
 		Eigen\src\StlSupport\StdVector.h \
 		Eigen\src\StlSupport\details.h \
+		Eigen\Geometry \
+		Eigen\SVD \
+		Eigen\QR \
+		Eigen\Cholesky \
+		Eigen\src\Cholesky\LLT.h \
+		Eigen\src\Cholesky\LDLT.h \
+		Eigen\src\misc\lapacke.h \
+		Eigen\src\misc\lapacke_mangling.h \
+		Eigen\src\Cholesky\LLT_LAPACKE.h \
+		Eigen\Jacobi \
+		Eigen\src\Jacobi\Jacobi.h \
+		Eigen\Householder \
+		Eigen\src\Householder\Householder.h \
+		Eigen\src\Householder\HouseholderSequence.h \
+		Eigen\src\Householder\BlockHouseholder.h \
+		Eigen\src\QR\HouseholderQR.h \
+		Eigen\src\QR\FullPivHouseholderQR.h \
+		Eigen\src\QR\ColPivHouseholderQR.h \
+		Eigen\src\QR\CompleteOrthogonalDecomposition.h \
+		Eigen\src\QR\HouseholderQR_LAPACKE.h \
+		Eigen\src\QR\ColPivHouseholderQR_LAPACKE.h \
+		Eigen\src\misc\RealSvd2x2.h \
+		Eigen\src\SVD\UpperBidiagonalization.h \
+		Eigen\src\SVD\SVDBase.h \
+		Eigen\src\SVD\JacobiSVD.h \
+		Eigen\src\SVD\BDCSVD.h \
+		Eigen\src\SVD\JacobiSVD_LAPACKE.h \
+		Eigen\LU \
+		Eigen\src\misc\Kernel.h \
+		Eigen\src\misc\Image.h \
+		Eigen\src\LU\FullPivLU.h \
+		Eigen\src\LU\PartialPivLU.h \
+		Eigen\src\LU\PartialPivLU_LAPACKE.h \
+		Eigen\src\LU\Determinant.h \
+		Eigen\src\LU\InverseImpl.h \
+		Eigen\src\LU\arch\Inverse_SSE.h \
+		Eigen\src\Geometry\OrthoMethods.h \
+		Eigen\src\Geometry\EulerAngles.h \
+		Eigen\src\Geometry\Homogeneous.h \
+		Eigen\src\Geometry\RotationBase.h \
+		Eigen\src\Geometry\Rotation2D.h \
+		Eigen\src\Geometry\Quaternion.h \
+		Eigen\src\Geometry\AngleAxis.h \
+		Eigen\src\Geometry\Transform.h \
+		Eigen\src\Geometry\Translation.h \
+		Eigen\src\Geometry\Scaling.h \
+		Eigen\src\Geometry\Hyperplane.h \
+		Eigen\src\Geometry\ParametrizedLine.h \
+		Eigen\src\Geometry\AlignedBox.h \
+		Eigen\src\Geometry\Umeyama.h \
+		Eigen\src\Geometry\arch\Geometry_SSE.h \
 		C:\Qt\5.12.1\msvc2017_64\include\QtCore\QSet \
 		C:\Qt\5.12.1\msvc2017_64\include\QtCore\qset.h \
 		C:\Qt\5.12.1\msvc2017_64\include\QtCore\qhash.h \
@@ -837,6 +955,22 @@ release\mesh.obj: mesh.cpp mesh.h \
 		C:\Qt\5.12.1\msvc2017_64\include\QtCore\qstringlist.h \
 		C:\Qt\5.12.1\msvc2017_64\include\QtCore\qregexp.h \
 		C:\Qt\5.12.1\msvc2017_64\include\QtCore\qstringmatcher.h \
+		Eigen\Dense \
+		Eigen\Eigenvalues \
+		Eigen\src\Eigenvalues\Tridiagonalization.h \
+		Eigen\src\Eigenvalues\RealSchur.h \
+		Eigen\src\Eigenvalues\HessenbergDecomposition.h \
+		Eigen\src\Eigenvalues\EigenSolver.h \
+		Eigen\src\Eigenvalues\SelfAdjointEigenSolver.h \
+		Eigen\src\Eigenvalues\GeneralizedSelfAdjointEigenSolver.h \
+		Eigen\src\Eigenvalues\ComplexSchur.h \
+		Eigen\src\Eigenvalues\ComplexEigenSolver.h \
+		Eigen\src\Eigenvalues\RealQZ.h \
+		Eigen\src\Eigenvalues\GeneralizedEigenSolver.h \
+		Eigen\src\Eigenvalues\MatrixBaseEigenvalues.h \
+		Eigen\src\Eigenvalues\RealSchur_LAPACKE.h \
+		Eigen\src\Eigenvalues\ComplexSchur_LAPACKE.h \
+		Eigen\src\Eigenvalues\SelfAdjointEigenSolver_LAPACKE.h \
 		C:\Qt\5.12.1\msvc2017_64\include\QtCore\QFileInfo \
 		C:\Qt\5.12.1\msvc2017_64\include\QtCore\qfileinfo.h \
 		C:\Qt\5.12.1\msvc2017_64\include\QtCore\qfile.h \
